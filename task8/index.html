@@ -1,9 +1,161 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>Example</title>
-    </head>
-    <body>
-        <p>This is an example of a simple HTML page with one paragraph.</p>
-    </body>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plot Custom Function</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.min.js"></script>
+
+
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0 50px 0 50px;
+            margin: 0;
+        }
+
+        canvas {
+            border: 1px solid #000;
+        }
+
+        .box {
+            display: flex;
+            flex-flow: column;
+            align-items: center;
+        }
+
+        .yo {
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <div class="yo">
+            <label for="coefficientA">Амплитуда:</label>
+            <input type="number" id="A" value="0.3">
+        </div>
+        <div class="yo">
+            <label for="coefficientB">Частота:</label>
+            <input type="number" id="omega" value="0.2">
+        </div>
+    </div>
+
+    <canvas id="myChart"></canvas>
+
+    <script>
+
+        const amplInput = document.getElementById('A');
+        const omegaInput = document.getElementById('omega');
+
+        function f(A, omega, t) {
+            return 2 * A * Math.cos(omega * t) * Math.cos(omega * t / 2)
+        }
+
+
+        const leftBound = 0;
+        const rightBound = 100;
+        const dt = 0.3;
+        const kPrecision = 2;
+
+        const canvas = document.getElementById('myChart');
+        const ctx = canvas.getContext('2d');
+
+        function getData() {
+            const newDatasets = [];
+            const newLabels = [];
+
+            const A = parseFloat(amplInput.value);
+            const omega = parseFloat(omegaInput.value);
+
+            if (A < 0 || omega < 0) {
+                alert("I can't work with negative params")
+                return
+            }
+
+            for (let t = leftBound; t <= rightBound; t += dt) {
+                newLabels.push(t.toFixed(kPrecision));
+                newDatasets.push([f(A, omega, t).toFixed(kPrecision)]);
+            }
+
+            return [newLabels, newDatasets];
+        }
+
+        const [labels, datasets] = getData();
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Биение",
+                    data: datasets.map(data => data[0]),
+                    borderColor: 'blue',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "t, время"
+                        },
+                        ticks: {
+                            callback: function (value, index) {
+                                return Math.round(this.getLabelForValue(value));
+                            },
+                            font: {
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: "Биение"
+                        },
+                        ticks: {
+                            callback: function (value, index) {
+                                return this.getLabelForValue(value);
+                            },
+                            font: {
+                                weight: 'bold'
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Визуализация сложения колебаний. Биения.',
+                        position: 'top',
+                        font: {
+                            size: 20
+                        }
+                    }
+                }
+            }
+        });
+
+
+        function updatePlot() {
+            const [newLabels, newDatasets] = getData();
+
+            chart.data.labels = newLabels;
+            chart.data.datasets[0].data = newDatasets.map(data => data[0]);
+            chart.update();
+        }
+
+        amplInput.addEventListener('input', updatePlot);
+        omegaInput.addEventListener('input', updatePlot);
+    </script>
+
+</body>
+
 </html>
