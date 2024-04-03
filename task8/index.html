@@ -41,8 +41,12 @@
             <input type="number" id="A" value="0.3">
         </div>
         <div class="yo">
-            <label for="coefficientB">Частота:</label>
-            <input type="number" id="omega" value="0.2">
+            <label for="coefficientB">Частота 1:</label>
+            <input type="number" id="omega1" value="0.2">
+        </div>
+        <div class="yo">
+            <label for="coefficientB">Частота 2:</label>
+            <input type="number" id="omega2" value="0.2">
         </div>
     </div>
 
@@ -51,10 +55,11 @@
     <script>
 
         const amplInput = document.getElementById('A');
-        const omegaInput = document.getElementById('omega');
+        const omega1Input = document.getElementById('omega1');
+        const omega2Input = document.getElementById('omega2');
 
-        function f(A, omega, t) {
-            return 2 * A * Math.cos(omega * t) * Math.cos(omega * t / 2)
+        function f(A, omega1, omega2, t) {
+            return 2 * A * Math.cos(omega1 * t) * Math.cos(Math.abs(omega2 - omega1) * t / 2)
         }
 
 
@@ -71,16 +76,17 @@
             const newLabels = [];
 
             const A = parseFloat(amplInput.value);
-            const omega = parseFloat(omegaInput.value);
+            const omega1 = parseFloat(omega1Input.value);
+            const omega2 = parseFloat(omega2Input.value);
 
-            if (A < 0 || omega < 0) {
+            if (A < 0 || omega1 < 0 || omega2 < 0) {
                 alert("I can't work with negative params")
                 return
             }
 
             for (let t = leftBound; t <= rightBound; t += dt) {
                 newLabels.push(t.toFixed(kPrecision));
-                newDatasets.push([f(A, omega, t).toFixed(kPrecision)]);
+                newDatasets.push([f(A, omega1, omega2, t).toFixed(kPrecision)]);
             }
 
             return [newLabels, newDatasets];
@@ -153,7 +159,8 @@
         }
 
         amplInput.addEventListener('input', updatePlot);
-        omegaInput.addEventListener('input', updatePlot);
+        omega1Input.addEventListener('input', updatePlot);
+        omega2Input.addEventListener('input', updatePlot);
     </script>
 
 </body>
