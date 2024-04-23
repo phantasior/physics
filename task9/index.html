@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plot Custom Function</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dsp.js/dist/dsp.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0 50px 0 50px;
+            margin: 0;
+        }
+
+        canvas {
+            border: 1px solid #000;
+        }
+
+        .box {
+            display: flex;
+            flex-flow: column;
+            align-items:flex-end ;
+            position: fixed; 
+            background-color: gray; 
+            color: white; 
+            justify-content: end; 
+            display: flex; 
+            right: 0;
+            bottom: 0
+        }
+
+        .yo {
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <div class="yo">
+            <label for="coefficientA">Частота несущего колебания:</label>
+            <input type="number" id="Fc" value="10">
+        </div>
+        <div class="yo">
+            <label for="coefficientA">Амплитуда несущего колебания:</label>
+            <input type="number" id="Ac" value="2">
+        </div>
+        <div class="yo">
+            <label for="coefficientA">Частота информационного сигнала:</label>
+            <input type="number" id="Fm" value="1">
+        </div>
+        <div class="yo">
+            <label for="coefficientA">Амплитуда информационного сигнала:</label>
+            <input type="number" id="Am" value="1">
+        </div>
+    </div>
+
+    <canvas id="myChart1"></canvas>
+    <canvas id="myChart2"></canvas>
+    <canvas id="myChart3"></canvas>
+    <canvas id="myChart4"></canvas>
+    <canvas id="myChart5"></canvas>
+
+    <script>
+        const leftBound = 0;
+        const rightBound = 10;
+        const dt = 0.05;
+        const kPrecision = 2;
+        
+
+        const carryFreqInput = document.getElementById('Fc');
+        const carryAmplInput = document.getElementById('Ac');
+        const infoFreqInput = document.getElementById('Fm');
+        const infoAmplInput = document.getElementById('Am');
+
+        function wave(A, F, t) {
+            return A * Math.cos(F * t);
+        }
+
+        function modulated(Am, Fm, Ac, Fc, t) {
+            let m = Am / Ac
+            return Ac * (1 + m * Math.cos(Fm * t)) * Math.cos(Fc * t)
+        }
+
+        function calculateSpectrum(signal, sampleRate) {
+            const fft = new DSP.FFT(signal.length, sampleRate);
+            fft.forward(signal);
+            
+            const spectrum = fft.spectrum;
+            
+            return spectrum;
+        }
+
+        function fft(signal) {
+            const N = signal.length;
+            const spectrum = [];
+            for (let k = 0; k < N; k++) {
+                let sumReal = 0;
+                let sumImag = 0;
+                for (let n = 0; n < N; n++) {
+                    const angle = (2 * Math.PI * k * n) / N;
+                    sumReal += signal[n] * Math.cos(angle);
+                    sumImag += signal[n] * Math.sin(angle);
+                }
+                const amplitude = Math.sqrt(sumReal ** 2 + sumImag ** 2) / N;
+                spectrum.push(amplitude);
+            }
+            return spectrum;
+        }
+
+        const ctx1 = document.getElementById('myChart1').getContext('2d');
+        const ctx2 = document.getElementById('myChart2').getContext('2d');
+        const ctx3 = document.getElementById('myChart3').getContext('2d');
+        const ctx4 = document.getElementById('myChart4').getContext('2d');
+        const ctx5 = document.getElementById('myChart5').getContext('2d');
+
+        function getData() {
+            const newDatasets = [];
+            const newLabels = [];
+
+            const carryFreq = parseFloat(carryFreqInput.value);
+            const carryAmpl = parseFloat(carryAmplInput.value);
+            const infoFreq = parseFloat(infoFreqInput.value);
+            const infoAmpl = parseFloat(infoAmplInput.value);
+
+            if (carryFreq < 0 || carryAmpl < 0 || infoFreq < 0 || infoAmpl < 0) {
+                alert("I can't work with negative params")
+                return
+            }
+
+            for (let t = leftBound; t <= rightBound; t += dt) {
+                newLabels.push(t.toFixed(kPrecision));
+                newDatasets.push([
+                    wave(carryAmpl, carryFreq, t),
+                    wave(infoAmpl, infoFreq, t),
+                    modulated(infoAmpl, infoFreq, carryAmpl, carryFreq, t)
+                ]);
+            }
+
+            const spectrumModulated1 = fft(newDatasets.map(data => data[0]));
+            for (let i = 0; i < spectrumModulated1.length; ++i) {
+                newDatasets[i].push(spectrumModulated1[i]);
+            }
+
+            const spectrumModulated2 = fft(newDatasets.map(data => data[1]));
+            for (let i = 0; i < spectrumModulated2.length; ++i) {
+                newDatasets[i].push(spectrumModulated2[i]);
+            }
+
+            const spectrumModulated3 = fft(newDatasets.map(data => data[2]));
+            for (let i = 0; i < spectrumModulated3.length; ++i) {
+                newDatasets[i].push(spectrumModulated3[i]);
+            }
+
+
+            return [newLabels, newDatasets];
+        }
+
+        const [labels, datasets] = getData();
+
+        const chart1 = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Несущее колебание",
+                    data: datasets.map(data => data[0]),
+                    borderColor: 'blue',
+                    borderWidth: 1
+                }, {
+                    label: "Информационный сигнал",
+                    data: datasets.map(data => data[1]),
+                    borderColor: 'red',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "t, время"
+                        },
+                        ticks: {
+                            callback: function (value, index) {
+                                return this.getLabelForValue(value);
+                            }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: "f(x)"
+                        },
+                        ticks: {
+                            callback: function (value, index) {
+                                return this.getLabelForValue(value);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Сигналы',
+                        position: 'top',
+                        font: {
+                            size: 20
+                        }
+                    }
+                }
+            }
+        });
+
+        const chart2 = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [ {
+                    label: "Результат модуляции",
+                    data: datasets.map(data => data[2]),
+                    borderColor: 'green',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "t, время"
+                        },
+                        ticks: {
+                            callback: function (value, index) {
+                                return this.getLabelForValue(value);
+                            }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: "f(x)"
+                        },
+                        ticks: {
+                            callback: function (value, index) {
+                                return this.getLabelForValue(value);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: "Результат модуляции",
+                        position: 'top',
+                        font: {
+                            size: 20
+                        }
+                    }
+                }
+            }
+        });
+
+        const chart3 = new Chart(ctx3, {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Спектр несущего колебания",
+                    data: datasets.map(data => data[3]),
+                    borderColor: "green",
+                    borderWidth: 1,
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Частота (Hz)",
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: "Амплитуда",
+                        }
+                    }
+                }
+            }
+        });
+
+        const chart4 = new Chart(ctx4, {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Спектр информационного колебания",
+                    data: datasets.map(data => data[4]),
+                    borderColor: "green",
+                    borderWidth: 1,
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Частота (Hz)",
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: "Амплитуда",
+                        }
+                    }
+                }
+            }
+        });
+
+        const chart5 = new Chart(ctx5, {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Спектр амплитудной модуляции",
+                    data: datasets.map(data => data[5]),
+                    borderColor: "green",
+                    borderWidth: 1,
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Частота (Hz)",
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: "Амплитуда",
+                        }
+                    }
+                }
+            }
+        });
+
+
+        function updatePlot() {
+            const [newLabels, newDatasets] = getData();
+
+
+
+            chart1.data.labels = newLabels;
+            chart1.data.datasets[0].data = newDatasets.map(data => data[0]);
+            chart1.data.datasets[1].data = newDatasets.map(data => data[1]);
+            chart2.data.datasets[0].data = newDatasets.map(data => data[2]);
+            chart3.data.datasets[0].data = newDatasets.map(data => data[3]);
+            chart4.data.datasets[0].data = newDatasets.map(data => data[4]);
+            chart5.data.datasets[0].data = newDatasets.map(data => data[5]);
+            chart1.update();
+            chart2.update();
+            chart3.update();
+            chart4.update();
+            chart5.update();
+        }
+
+        carryFreqInput.addEventListener('input', updatePlot);
+        carryAmplInput.addEventListener('input', updatePlot);
+        infoFreqInput.addEventListener('input', updatePlot);
+        infoAmplInput.addEventListener('input', updatePlot);
+    </script>
+
+</body>
+
+</html>
