@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plot Custom Function</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0 50px 0 50px;
+            margin: 0;
+        }
+
+        canvas {
+            border: 1px solid #000;
+        }
+
+        .box {
+            display: flex;
+            flex-flow: column;
+            align-items: center;
+        }
+
+        .yo {
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <div class="yo">
+            <label for="gaps">Кол-во щелей:</label>
+            <input type="number" id="gaps" value="2">
+        </div>
+        <div class="yo">
+            <label for="size">Размер щелей (мм):</label>
+            <input type="number" id="size" value="2">
+        </div>
+        <div class="yo">
+            <label for="length">Длина волны (нм):</label>
+            <input type="number" id="length" value="555">
+        </div>
+        <div class="yo">
+            <label for="period">Период решетки (мм):</label>
+            <input type="number" id="period" value="8">
+        </div>
+    </div>
+
+    <canvas id="myChart"></canvas>
+
+    <script>
+        const gapsInput = document.getElementById('gaps');
+        const sizeInput = document.getElementById('size');
+        const lengthInput = document.getElementById('length');
+        const periodInput = document.getElementById('period');
+
+        function calculateIntensity(N, a, lambda, d, theta) {
+            const alpha = Math.PI * a * Math.sin(theta) / lambda;
+            const beta = Math.PI * d * Math.sin(theta) / lambda;
+            return Math.pow(Math.sin(N * beta) / Math.sin(beta), 2) * Math.pow(Math.sin(alpha) / alpha, 2);
+        }
+
+        const leftBound = -0.0005;
+        const rightBound = -leftBound;
+        const dt = 0.000001;
+        const kPrecision = 4;
+
+        const canvas = document.getElementById('myChart');
+        const ctx = canvas.getContext('2d');
+
+        function getData() {
+            const newDatasets = [];
+            const newLabels = [];
+
+            const gaps = parseFloat(gapsInput.value);
+            const size = parseFloat(sizeInput.value);
+            const length = parseFloat(lengthInput.value);
+            const period = parseFloat(periodInput.value);
+
+            for (let t = leftBound; t <= rightBound; t += dt) {
+                newLabels.push(t.toFixed(kPrecision));
+                newDatasets.push([
+                    calculateIntensity(gaps, size / 1000, length / 1e9, period / 1000, t),
+                ]);
+            }
+
+            return [newLabels, newDatasets];
+        }
+
+        const [labels, datasets] = getData();
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Интенсивность",
+                    data: datasets.map(data => data[0]),
+                    borderColor: 'blue',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "синус угла дифракции"
+                        },
+                        ticks: {
+                            font: {
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: "Интенсивность"
+                        },
+                        ticks: {
+                            font: {
+                                weight: 'bold'
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'График зависимости интенсивности от синуса угла дифракции на экране',
+                        position: 'top',
+                        font: {
+                            size: 20
+                        }
+                    }
+                }
+            }
+        });
+
+        function validateInput(input) {
+            if (parseFloat(input.value) < 0) {
+                input.value = Math.abs(input.value);
+                alert('Please enter a positive value.');
+            }
+        }
+
+        function updatePlot() {
+            validateInput(gapsInput);
+            validateInput(sizeInput);
+            validateInput(lengthInput);
+            validateInput(periodInput);
+
+            const [newLabels, newDatasets] = getData();
+
+            chart.data.labels = newLabels;
+            chart.data.datasets[0].data = newDatasets.map(data => data[0]);
+            chart.update();
+        }
+
+        gapsInput.addEventListener('input', updatePlot);
+        sizeInput.addEventListener('input', updatePlot);
+        lengthInput.addEventListener('input', updatePlot);
+        periodInput.addEventListener('input', updatePlot);
+
+    </script>
+
+</body>
+
+</html>
